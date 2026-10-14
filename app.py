@@ -16,7 +16,7 @@ admin_username = os.environ.get("APP_USERNAME", "admin")
 admin_password = os.environ.get("APP_PASSWORD", "default_password_please_change")
 
 # Hash the password securely in memory
-hashed_passwords = stauth.Hasher([admin_password]).generate()
+hashed_passwords = stauth.Hasher(passwords=[admin_password]).generate()
 
 credentials = {
     "usernames": {
