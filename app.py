@@ -6,7 +6,24 @@ import json
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 
-# 1. Page Configuration
+# --- 1. RAILWAY SECRETS BUILDER ---
+# This converts your pure JSON variable from Railway into Streamlit's required TOML format
+gcp_env = os.environ.get("GCP_CREDENTIALS")
+if gcp_env:
+    os.makedirs(".streamlit", exist_ok=True)
+    with open(".streamlit/secrets.toml", "w") as f:
+        f.write("[connections.gsheets]\n")
+        try:
+            creds_dict = json.loads(gcp_env)
+            for key, value in creds_dict.items():
+                if isinstance(value, str):
+                    # Properly escape the multi-line private key
+                    value_escaped = value.replace("\n", "\\n")
+                    f.write(f'{key} = "{value_escaped}"\n')
+        except json.JSONDecodeError:
+            pass
+
+# 2. Page Configuration
 st.set_page_config(page_title="LeafConnect Tools", layout="wide")
 
 # --- INITIALIZE SESSION STATE ---
@@ -19,18 +36,8 @@ if 'msrp_input' not in st.session_state:
 # --- CONNECT TO SECURE GOOGLE SHEET ---
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1w19eoASJ6KjeZTS7KRIeQJdrtyjuA2V0jnvU6BqQ1lw/edit"
 
-# Load credentials directly from Railway Environment Variable
-gcp_env = os.environ.get("GCP_CREDENTIALS", "{}")
-
 try:
-    creds_dict = json.loads(gcp_env)
-    
-    # Pass the dictionary directly to the connection
-    conn = st.connection(
-        "gsheets", 
-        type=GSheetsConnection, 
-        service_account_info=creds_dict
-    )
+    conn = st.connection("gsheets", type=GSheetsConnection)
     df_markups = conn.read(spreadsheet=SHEET_URL, ttl=0)
     df_markups = df_markups.dropna(subset=['Brand']) 
 except Exception as e:
