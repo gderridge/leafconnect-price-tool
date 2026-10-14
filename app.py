@@ -1,27 +1,8 @@
 import streamlit as st
 import pandas as pd
 import io
-import os
-import json
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
-
-# --- RAILWAY SECRETS LOADER ---
-# This safely converts your Railway JSON variable into Streamlit's required internal format
-if "GCP_SERVICE_ACCOUNT" in os.environ:
-    os.makedirs(".streamlit", exist_ok=True)
-    with open(".streamlit/secrets.toml", "w") as f:
-        try:
-            creds = json.loads(os.environ["GCP_SERVICE_ACCOUNT"])
-            f.write("[connections.gsheets]\n")
-            f.write('spreadsheet = "https://docs.google.com/spreadsheets/d/1w19eoASJ6KjeZTS7KRIeQJdrtyjuA2V0jnvU6BqQ1lw/edit"\n')
-            f.write('type = "service_account"\n')
-            for key, value in creds.items():
-                if isinstance(value, str):
-                    escaped_value = value.replace('\n', '\\n')
-                    f.write(f'{key} = "{escaped_value}"\n')
-        except Exception as e:
-            st.error(f"Error parsing service account: {e}")
 
 # 1. Page Configuration
 st.set_page_config(page_title="LeafConnect Tools", layout="wide")
@@ -34,13 +15,12 @@ if 'msrp_input' not in st.session_state:
     })
 
 # --- CONNECT TO SECURE GOOGLE SHEET ---
-conn = st.connection("gsheets", type=GSheetsConnection)
 try:
-    # Set ttl=0 to always fetch the freshest data from your sheet
+    conn = st.connection("gsheets", type=GSheetsConnection)
     df_markups = conn.read(ttl=0)
     df_markups = df_markups.dropna(subset=['Brand']) 
 except Exception as e:
-    st.error("⚠️ Google Sheets Connection Failed. Please check your Railway variables.")
+    st.error(f"⚠️ Google Sheets Connection Failed: {e}")
     df_markups = pd.DataFrame({'Brand': ['Setup Needed'], 'Subcategory': ['Setup Needed'], 'Multiplier': [1.0]})
 
 # --- SIDEBAR NAVIGATION ---
