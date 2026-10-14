@@ -15,9 +15,11 @@ if 'msrp_input' not in st.session_state:
     })
 
 # --- CONNECT TO SECURE GOOGLE SHEET ---
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1w19eoASJ6KjeZTS7KRIeQJdrtyjuA2V0jnvU6BqQ1lw/edit"
+
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
-    df_markups = conn.read(ttl=0)
+    df_markups = conn.read(spreadsheet=SHEET_URL, ttl=0)
     df_markups = df_markups.dropna(subset=['Brand']) 
 except Exception as e:
     st.error(f"⚠️ Google Sheets Connection Failed: {e}")
