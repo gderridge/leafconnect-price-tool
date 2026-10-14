@@ -11,12 +11,16 @@ import streamlit_authenticator as stauth
 st.set_page_config(page_title="LeafConnect Tools", layout="wide")
 
 # --- AUTHENTICATION SETUP ---
-# We hash the password 'password123' so it is handled securely
-hashed_passwords = stauth.Hasher(['password123']).generate()
+# Pull secure credentials from Railway environment variables
+admin_username = os.environ.get("APP_USERNAME", "admin")
+admin_password = os.environ.get("APP_PASSWORD", "default_password_please_change")
+
+# Hash the password securely in memory
+hashed_passwords = stauth.Hasher([admin_password]).generate()
 
 credentials = {
     "usernames": {
-        "admin": {
+        admin_username: {
             "email": "admin@leafconnect.com",
             "name": "Admin",
             "password": hashed_passwords[0]
