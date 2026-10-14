@@ -3,4 +3,4 @@ pandas
 xlsxwriter
 openpyxl
 xlrd
-st-gsheets-connection
+requests

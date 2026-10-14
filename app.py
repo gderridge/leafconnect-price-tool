@@ -3,27 +3,10 @@ import pandas as pd
 import io
 import os
 import json
+import requests
 from datetime import datetime
-from streamlit_gsheets import GSheetsConnection
 
-# --- 1. RAILWAY SECRETS BUILDER ---
-# This converts your pure JSON variable from Railway into Streamlit's required TOML format
-gcp_env = os.environ.get("GCP_CREDENTIALS")
-if gcp_env:
-    os.makedirs(".streamlit", exist_ok=True)
-    with open(".streamlit/secrets.toml", "w") as f:
-        f.write("[connections.gsheets]\n")
-        try:
-            creds_dict = json.loads(gcp_env)
-            for key, value in creds_dict.items():
-                if isinstance(value, str):
-                    # Properly escape the multi-line private key
-                    value_escaped = value.replace("\n", "\\n")
-                    f.write(f'{key} = "{value_escaped}"\n')
-        except json.JSONDecodeError:
-            pass
-
-# 2. Page Configuration
+# 1. Page Configuration
 st.set_page_config(page_title="LeafConnect Tools", layout="wide")
 
 # --- INITIALIZE SESSION STATE ---
@@ -33,16 +16,58 @@ if 'msrp_input' not in st.session_state:
         "Cost Price": [0.0, 0.0, 0.0]
     })
 
-# --- CONNECT TO SECURE GOOGLE SHEET ---
-SHEET_URL = "https://docs.google.com/spreadsheets/d/1w19eoASJ6KjeZTS7KRIeQJdrtyjuA2V0jnvU6BqQ1lw/edit"
+# --- CONNECT TO SECURE ZOHO SHEET ---
+@st.cache_data(ttl=600)
+def fetch_zoho_markups():
+    try:
+        zoho_env = os.environ.get("ZOHO_CREDENTIALS", "{}")
+        creds = json.loads(zoho_env)
+        
+        client_id = creds.get("client_id")
+        client_secret = creds.get("client_secret")
+        refresh_token = creds.get("refresh_token")
+        resource_id = creds.get("resource_id")
+        worksheet_name = creds.get("worksheet_name", "Sheet1")
+        
+        if not all([client_id, client_secret, refresh_token, resource_id]):
+            return pd.DataFrame({'Brand': ['Setup Needed'], 'Subcategory': ['Setup Needed'], 'Multiplier': [1.0]})
+        
+        # 1. Get Access Token
+        token_url = "https://accounts.zoho.com/oauth/v2/token"
+        token_params = {
+            "refresh_token": refresh_token,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "grant_type": "refresh_token"
+        }
+        token_res = requests.post(token_url, params=token_params)
+        token_res.raise_for_status()
+        access_token = token_res.json().get("access_token")
+        
+        # 2. Fetch Sheet Data
+        data_url = f"https://sheet.zoho.com/api/v2/{resource_id}"
+        headers = {"Authorization": f"Zoho-oauthtoken {access_token}"}
+        params = {
+            "method": "worksheet.records.fetch",
+            "worksheet_name": worksheet_name
+        }
+        
+        data_res = requests.get(data_url, headers=headers, params=params)
+        data_res.raise_for_status()
+        
+        records = data_res.json().get("records", [])
+        df = pd.DataFrame(records)
+        
+        if df.empty or 'Brand' not in df.columns:
+            return pd.DataFrame({'Brand': ['Setup Needed'], 'Subcategory': ['Setup Needed'], 'Multiplier': [1.0]})
+            
+        return df.dropna(subset=['Brand'])
+        
+    except Exception as e:
+        st.error(f"⚠️ Zoho Sheets Connection Failed: {e}")
+        return pd.DataFrame({'Brand': ['Setup Needed'], 'Subcategory': ['Setup Needed'], 'Multiplier': [1.0]})
 
-try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
-    df_markups = conn.read(spreadsheet=SHEET_URL, ttl=0)
-    df_markups = df_markups.dropna(subset=['Brand']) 
-except Exception as e:
-    st.error(f"⚠️ Google Sheets Connection Failed: {e}")
-    df_markups = pd.DataFrame({'Brand': ['Setup Needed'], 'Subcategory': ['Setup Needed'], 'Multiplier': [1.0]})
+df_markups = fetch_zoho_markups()
 
 # --- SIDEBAR NAVIGATION ---
 st.sidebar.image("LeafConnect_Logo-09.png", width=200)
@@ -153,7 +178,7 @@ if page == "Price Comparison":
 # ==========================================
 elif page == "MSRP Calculator":
     st.title("MSRP Calculator")
-    st.write("Markups are synced securely from your Google Sheet.")
+    st.write("Markups are synced securely from your Zoho Sheet.")
     
     col1, col2, col3 = st.columns(3)
     
