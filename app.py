@@ -15,15 +15,15 @@ st.set_page_config(page_title="LeafConnect Tools", layout="wide")
 admin_username = os.environ.get("APP_USERNAME", "admin")
 admin_password = os.environ.get("APP_PASSWORD", "default_password_please_change")
 
-# Hash the password securely in memory
-hashed_passwords = stauth.Hasher(passwords=[admin_password]).generate()
+# Hash the password securely in memory using the updated method
+hashed_password = stauth.Hasher.hash(admin_password)
 
 credentials = {
     "usernames": {
         admin_username: {
             "email": "admin@leafconnect.com",
             "name": "Admin",
-            "password": hashed_passwords[0]
+            "password": hashed_password
         }
     }
 }
