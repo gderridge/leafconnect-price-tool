@@ -17,7 +17,8 @@ if 'msrp_input' not in st.session_state:
     })
 
 # --- CONNECT TO SECURE ZOHO SHEET ---
-@st.cache_data(ttl=600)
+# Changed ttl to 5 seconds so updates appear almost instantly without spamming the API
+@st.cache_data(ttl=5)
 def fetch_zoho_markups():
     try:
         zoho_env = os.environ.get("ZOHO_CREDENTIALS", "{}")
