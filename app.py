@@ -6,25 +6,6 @@ import json
 from datetime import datetime
 from streamlit_gsheets import GSheetsConnection
 
-# --- RAILWAY SECRETS LOADER ---
-# Streamlit requires a physical secrets.toml file. This extracts your JSON from Railway and creates it.
-railway_secret = os.environ.get("STREAMLIT_SECRETS_toml", "")
-start_idx = railway_secret.find("{")
-end_idx = railway_secret.rfind("}")
-
-if start_idx != -1 and end_idx != -1:
-    try:
-        creds = json.loads(railway_secret[start_idx:end_idx+1])
-        os.makedirs(".streamlit", exist_ok=True)
-        with open(".streamlit/secrets.toml", "w") as f:
-            f.write("[connections.gsheets]\n")
-            for k, v in creds.items():
-                if isinstance(v, str):
-                    v_escaped = v.replace('\n', '\\n')
-                    f.write(f'{k} = "{v_escaped}"\n')
-    except Exception:
-        pass # Streamlit will throw the connection error below if this fails
-
 # 1. Page Configuration
 st.set_page_config(page_title="LeafConnect Tools", layout="wide")
 
@@ -37,13 +18,23 @@ if 'msrp_input' not in st.session_state:
 
 # --- CONNECT TO SECURE GOOGLE SHEET ---
 SHEET_URL = "https://docs.google.com/spreadsheets/d/1w19eoASJ6KjeZTS7KRIeQJdrtyjuA2V0jnvU6BqQ1lw/edit"
+
+# Load credentials directly from Railway Environment Variable
+gcp_env = os.environ.get("GCP_CREDENTIALS", "{}")
+
 try:
-    conn = st.connection("gsheets", type=GSheetsConnection)
+    creds_dict = json.loads(gcp_env)
+    
+    # Pass the dictionary directly to the connection
+    conn = st.connection(
+        "gsheets", 
+        type=GSheetsConnection, 
+        service_account_info=creds_dict
+    )
     df_markups = conn.read(spreadsheet=SHEET_URL, ttl=0)
     df_markups = df_markups.dropna(subset=['Brand']) 
 except Exception as e:
     st.error(f"⚠️ Google Sheets Connection Failed: {e}")
-    st.info("Verify that the Service Account email (from your JSON file) has been invited to the Google Sheet.")
     df_markups = pd.DataFrame({'Brand': ['Setup Needed'], 'Subcategory': ['Setup Needed'], 'Multiplier': [1.0]})
 
 # --- SIDEBAR NAVIGATION ---
