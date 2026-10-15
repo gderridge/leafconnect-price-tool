@@ -55,9 +55,8 @@ elif st.session_state["authentication_status"]:
         })
 
     # --- CONNECT TO SECURE ZOHO SHEET ---
-    # Renamed function to v2 to force Streamlit to dump its old cache
     @st.cache_data(ttl=5)
-    def fetch_zoho_markups_v2():
+    def fetch_zoho_markups():
         try:
             zoho_env = os.environ.get("ZOHO_CREDENTIALS", "{}")
             creds = json.loads(zoho_env)
@@ -95,9 +94,10 @@ elif st.session_state["authentication_status"]:
             records = data_res.json().get("records", [])
             df = pd.DataFrame(records)
             
-            # Clean up column names to prevent matching errors from hidden spaces
+            # Clean up column names and force empty cells to empty strings to prevent NaN float errors
             if not df.empty:
-                df.columns = df.columns.str.strip()
+                df.columns = df.columns.astype(str).str.strip()
+                df = df.fillna('')
             
             if df.empty or 'Brand' not in df.columns:
                 return pd.DataFrame({'Brand': ['Setup Needed'], 'Subcategory': ['Setup Needed'], 'Multiplier': [1.0]})
@@ -108,7 +108,7 @@ elif st.session_state["authentication_status"]:
             st.error(f"⚠️ Zoho Sheets Connection Failed: {e}")
             return pd.DataFrame({'Brand': ['Setup Needed'], 'Subcategory': ['Setup Needed'], 'Multiplier': [1.0]})
 
-    df_markups = fetch_zoho_markups_v2()
+    df_markups = fetch_zoho_markups()
 
     # --- SIDEBAR NAVIGATION ---
     st.sidebar.image("LeafConnect_Logo-09.png", width=200)
@@ -245,13 +245,13 @@ elif st.session_state["authentication_status"]:
                 
                 active_multiplier = active_row['Multiplier']
                 
-                # Robust search for the column, even if spelled slightly differently
+                # Robust search for the column, avoiding NaN type errors
                 show_col = next((c for c in active_row.index if 'show' in str(c).lower()), None)
                 
                 if show_col is not None:
-                    val = active_row[show_col]
+                    val = str(active_row[show_col]).strip().upper()
                     # If the cell is explicitly marked N, No, or False, hide it
-                    if str(val).strip().upper() in ['N', 'NO', 'FALSE']:
+                    if val in ['N', 'NO', 'FALSE', '0']:
                         st.metric(label="Active Multiplier", value="Hidden")
                     else:
                         st.metric(label="Active Multiplier", value=f"x {active_multiplier}")
