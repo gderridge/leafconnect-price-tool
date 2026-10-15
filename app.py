@@ -232,11 +232,23 @@ elif st.session_state["authentication_status"]:
             
         with col3:
             try:
-                active_multiplier = df_markups[
+                # Find the exact row for the selected brand and subcategory
+                active_row = df_markups[
                     (df_markups['Brand'] == selected_brand) & 
                     (df_markups['Subcategory'] == selected_subcat)
-                ]['Multiplier'].values[0]
-                st.metric(label="Active Multiplier", value=f"x {active_multiplier}")
+                ].iloc[0]
+                
+                active_multiplier = active_row['Multiplier']
+                
+                # Check the new "Show Multiplier" column safely (defaults to 'Y' if missing or blank)
+                show_multiplier = active_row.get('Show Multiplier', 'Y')
+                
+                # Display the value if 'Y', otherwise hide it
+                if str(show_multiplier).strip().upper() == 'Y':
+                    st.metric(label="Active Multiplier", value=f"x {active_multiplier}")
+                else:
+                    st.metric(label="Active Multiplier", value="Hidden")
+                    
             except IndexError:
                 st.error("No multiplier found.")
                 active_multiplier = 1.0
