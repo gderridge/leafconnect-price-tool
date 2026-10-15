@@ -55,8 +55,9 @@ elif st.session_state["authentication_status"]:
         })
 
     # --- CONNECT TO SECURE ZOHO SHEET ---
+    # Renamed function to v2 to force Streamlit to dump its old cache
     @st.cache_data(ttl=5)
-    def fetch_zoho_markups():
+    def fetch_zoho_markups_v2():
         try:
             zoho_env = os.environ.get("ZOHO_CREDENTIALS", "{}")
             creds = json.loads(zoho_env)
@@ -94,6 +95,10 @@ elif st.session_state["authentication_status"]:
             records = data_res.json().get("records", [])
             df = pd.DataFrame(records)
             
+            # Clean up column names to prevent matching errors from hidden spaces
+            if not df.empty:
+                df.columns = df.columns.str.strip()
+            
             if df.empty or 'Brand' not in df.columns:
                 return pd.DataFrame({'Brand': ['Setup Needed'], 'Subcategory': ['Setup Needed'], 'Multiplier': [1.0]})
                 
@@ -103,7 +108,7 @@ elif st.session_state["authentication_status"]:
             st.error(f"⚠️ Zoho Sheets Connection Failed: {e}")
             return pd.DataFrame({'Brand': ['Setup Needed'], 'Subcategory': ['Setup Needed'], 'Multiplier': [1.0]})
 
-    df_markups = fetch_zoho_markups()
+    df_markups = fetch_zoho_markups_v2()
 
     # --- SIDEBAR NAVIGATION ---
     st.sidebar.image("LeafConnect_Logo-09.png", width=200)
@@ -240,14 +245,19 @@ elif st.session_state["authentication_status"]:
                 
                 active_multiplier = active_row['Multiplier']
                 
-                # Check the new "Show Multiplier" column safely (defaults to 'Y' if missing or blank)
-                show_multiplier = active_row.get('Show Multiplier', 'Y')
+                # Robust search for the column, even if spelled slightly differently
+                show_col = next((c for c in active_row.index if 'show' in str(c).lower()), None)
                 
-                # Display the value if 'Y', otherwise hide it
-                if str(show_multiplier).strip().upper() == 'Y':
-                    st.metric(label="Active Multiplier", value=f"x {active_multiplier}")
+                if show_col is not None:
+                    val = active_row[show_col]
+                    # If the cell is explicitly marked N, No, or False, hide it
+                    if str(val).strip().upper() in ['N', 'NO', 'FALSE']:
+                        st.metric(label="Active Multiplier", value="Hidden")
+                    else:
+                        st.metric(label="Active Multiplier", value=f"x {active_multiplier}")
                 else:
-                    st.metric(label="Active Multiplier", value="Hidden")
+                    # If column is totally missing, default to showing
+                    st.metric(label="Active Multiplier", value=f"x {active_multiplier}")
                     
             except IndexError:
                 st.error("No multiplier found.")
