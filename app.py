@@ -250,10 +250,8 @@ elif st.session_state["authentication_status"]:
                 
                 if show_col is not None:
                     val = str(active_row[show_col]).strip().upper()
-                    # If the cell is explicitly marked N, No, or False, hide it
-                    if val in ['N', 'NO', 'FALSE', '0']:
-                        st.metric(label="Active Multiplier", value="Hidden")
-                    else:
+                    # Only display the metric if it is NOT marked 'N', 'NO', 'FALSE', or '0'
+                    if val not in ['N', 'NO', 'FALSE', '0']:
                         st.metric(label="Active Multiplier", value=f"x {active_multiplier}")
                 else:
                     # If column is totally missing, default to showing
