@@ -55,7 +55,7 @@ elif st.session_state["authentication_status"]:
         })
 
     # --- CONNECT TO SECURE ZOHO SHEET ---
-    @st.cache_data(ttl=5)
+    @st.cache_data(ttl=60)
     def fetch_zoho_markups():
         try:
             zoho_env = os.environ.get("ZOHO_CREDENTIALS", "{}")
