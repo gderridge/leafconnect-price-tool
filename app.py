@@ -6,6 +6,7 @@ import json
 import requests
 from datetime import datetime
 import streamlit_authenticator as stauth
+import math
 
 # 1. Page Configuration
 st.set_page_config(page_title="LeafConnect Tools", layout="wide")
@@ -272,7 +273,11 @@ elif st.session_state["authentication_status"]:
             result_df = result_df[result_df['SKU'].str.strip() != ""]
             
             if not result_df.empty:
-                result_df['Calculated MSRP'] = result_df['Cost Price'] * float(active_multiplier)
+                # Calculate MSRP USD
+                result_df['MSRP USD'] = result_df['Cost Price'] * float(active_multiplier)
+                
+                # Calculate MSRP AED, round up to the nearest 1
+                result_df['MSRP AED'] = (result_df['MSRP USD'] * 3.685).apply(math.ceil)
                 
                 st.success("Calculation Complete!")
                 st.dataframe(result_df, use_container_width=True)
